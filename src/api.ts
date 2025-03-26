@@ -1,32 +1,66 @@
-import { Song, OpenAIModel, PromptSettings } from './types';
+import { Song, OpenAIModel, PromptSettings, OllamaModel, AIModel } from './types';
+
+// Re-export AIModel so it can be imported from this file by other components
+export type { AIModel };
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const OLLAMA_API_URL = import.meta.env.VITE_OLLAMA_API_URL;
 const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_PROVIDER = 'openai';
 
 // List of available OpenAI models
-export const OPENAI_MODELS: OpenAIModel[] = [
+export const OPENAI_MODELS: AIModel[] = [
   {
     id: 'gpt-4o-mini',
     name: 'GPT-4o Mini',
-    description: 'Smaller, faster, and more affordable version of GPT-4o'
+    description: 'Smaller, faster, and more affordable version of GPT-4o',
+    provider: 'openai'
   },
   {
     id: 'gpt-4o',
     name: 'GPT-4o',
-    description: 'Most capable multimodal model for text, vision, and audio tasks'
+    description: 'Most capable multimodal model for text, vision, and audio tasks',
+    provider: 'openai'
   },
   {
     id: 'gpt-3.5-turbo',
     name: 'GPT-3.5 Turbo',
-    description: 'Fast and efficient model for most everyday tasks'
+    description: 'Fast and efficient model for most everyday tasks',
+    provider: 'openai'
   },
   {
     id: 'gpt-4-turbo',
     name: 'GPT-4 Turbo',
-    description: 'Advanced model with improved reasoning capabilities'
+    description: 'Advanced model with improved reasoning capabilities',
+    provider: 'openai'
   }
 ];
+
+// List of available Ollama models
+export const OLLAMA_MODELS: AIModel[] = [
+  {
+    id: 'llama3.1:8b',
+    name: 'Llama 3.1 (8B)',
+    description: 'Meta\'s Llama 3.1 8B parameter model',
+    provider: 'ollama'
+  },
+  {
+    id: 'llama3.2:3b',
+    name: 'Llama 3.2 (3B)',
+    description: 'Meta\'s Llama 3.2 3B parameter model',
+    provider: 'ollama'
+  },
+  {
+    id: 'deepseek-r1:8b',
+    name: 'DeepSeek R1 (8B)',
+    description: 'DeepSeek\'s R1 8B parameter model',
+    provider: 'ollama'
+  }
+];
+
+// Combine all available models
+export const ALL_AI_MODELS: AIModel[] = [...OPENAI_MODELS, ...OLLAMA_MODELS];
 
 // Default prompt settings
 export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
@@ -57,7 +91,8 @@ export async function generateSongPlaylist(
   genre: string, 
   count: number = 20, 
   model: string = DEFAULT_MODEL,
-  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS
+  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS,
+  provider: 'openai' | 'ollama' = DEFAULT_PROVIDER
 ): Promise<Song[]> {
   try {
     // Replace placeholders in the prompt template
@@ -65,35 +100,13 @@ export async function generateSongPlaylist(
       .replace('{genre}', genre)
       .replace('{count}', count.toString());
 
-    const response = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: 'system',
-            content: promptSettings.systemPrompt
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    let responseText: string;
+    
+    if (provider === 'openai') {
+      responseText = await callOpenAI(model, promptSettings.systemPrompt, prompt);
+    } else {
+      responseText = await callOllama(model, promptSettings.systemPrompt, prompt);
     }
-
-    const data = await response.json();
-    const responseText = data.choices[0].message.content;
     
     // Extract JSON from the response
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
@@ -122,7 +135,8 @@ export async function generateSongDetails(
   song: Song, 
   genre: string, 
   model: string = DEFAULT_MODEL,
-  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS
+  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS,
+  provider: 'openai' | 'ollama' = DEFAULT_PROVIDER
 ): Promise<Song> {
   try {
     // Replace placeholders in the prompt template
@@ -131,35 +145,13 @@ export async function generateSongDetails(
       .replace('{title}', song.title)
       .replace('{artist}', song.artist);
 
-    const response = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: 'system',
-            content: promptSettings.systemPrompt
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    let responseText: string;
+    
+    if (provider === 'openai') {
+      responseText = await callOpenAI(model, promptSettings.systemPrompt, prompt);
+    } else {
+      responseText = await callOllama(model, promptSettings.systemPrompt, prompt);
     }
-
-    const data = await response.json();
-    const responseText = data.choices[0].message.content;
     
     // Extract JSON from the response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -205,6 +197,71 @@ export async function generateSongDetails(
   }
 }
 
+// Helper function to call OpenAI API
+async function callOpenAI(model: string, systemPrompt: string, userPrompt: string): Promise<string> {
+  const response = await fetch(OPENAI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// Helper function to call Ollama API
+async function callOllama(model: string, systemPrompt: string, userPrompt: string): Promise<string> {
+  const response = await fetch(`${OLLAMA_API_URL}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Ollama API error: ${errorText || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.message.content;
+}
+
 export function generateYoutubeSearchUrl(title: string, artist: string): string {
   const searchQuery = encodeURIComponent(`${title} ${artist}`);
   return `https://www.youtube.com/results?search_query=${searchQuery}`;
@@ -218,4 +275,22 @@ export function generateSpotifySearchUrl(title: string, artist: string): string 
 export function generateAppleMusicSearchUrl(title: string, artist: string): string {
   const searchQuery = encodeURIComponent(`${title} ${artist}`);
   return `https://music.apple.com/us/search?term=${searchQuery}`;
+}
+
+// Function to fetch available models from Ollama server
+export async function fetchOllamaModels(): Promise<string[]> {
+  try {
+    const response = await fetch(`${OLLAMA_API_URL}/api/tags`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Ollama models: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.models.map((model: any) => model.name);
+  } catch (error) {
+    console.error('Error fetching Ollama models:', error);
+    // Return default models if we can't fetch from server
+    return OLLAMA_MODELS.map(model => model.id);
+  }
 }

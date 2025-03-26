@@ -14,13 +14,15 @@ interface PlaylistActionsProps {
   genre: string;
   selectedModel: string;
   promptSettings: PromptSettings;
+  modelProvider?: 'openai' | 'ollama';
 }
 
 const PlaylistActions: React.FC<PlaylistActionsProps> = ({ 
   songs, 
   genre, 
   selectedModel,
-  promptSettings 
+  promptSettings,
+  modelProvider = 'openai' // Default to 'openai' for backward compatibility
 }) => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -39,6 +41,7 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({
       genre,
       songs,
       model: selectedModel,
+      modelProvider,
       createdAt: Date.now(),
       promptSettings
     };
@@ -71,6 +74,7 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({
       genre,
       songs,
       model: selectedModel,
+      modelProvider,
       createdAt: Date.now(),
       promptSettings
     };
@@ -115,6 +119,7 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({
       genre,
       songs,
       model: selectedModel,
+      modelProvider,
       createdAt: Date.now(),
       promptSettings
     };

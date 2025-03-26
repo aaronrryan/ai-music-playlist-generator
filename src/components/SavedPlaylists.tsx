@@ -5,17 +5,28 @@ import { getPlaylists, deletePlaylist } from '../utils/storage';
 
 interface SavedPlaylistsProps {
   onLoadPlaylist: (playlist: SavedPlaylist) => void;
+  playlists?: SavedPlaylist[]; // Optional prop to provide playlists externally
+  onCreateNew?: () => void; // Optional callback for creating a new playlist
 }
 
-const SavedPlaylists: React.FC<SavedPlaylistsProps> = ({ onLoadPlaylist }) => {
+const SavedPlaylists: React.FC<SavedPlaylistsProps> = ({ 
+  onLoadPlaylist, 
+  playlists: externalPlaylists,
+  onCreateNew
+}) => {
   const [playlists, setPlaylists] = useState<SavedPlaylist[]>([]);
   const [showConfirmDelete, setShowConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load playlists from local storage
-    const savedPlaylists = getPlaylists();
-    setPlaylists(savedPlaylists.sort((a, b) => b.createdAt - a.createdAt));
-  }, []);
+    // If playlists are provided externally, use them
+    if (externalPlaylists) {
+      setPlaylists(externalPlaylists.sort((a, b) => b.createdAt - a.createdAt));
+    } else {
+      // Otherwise load playlists from local storage
+      const savedPlaylists = getPlaylists();
+      setPlaylists(savedPlaylists.sort((a, b) => b.createdAt - a.createdAt));
+    }
+  }, [externalPlaylists]);
 
   const handleDeletePlaylist = (id: string) => {
     deletePlaylist(id);
@@ -39,13 +50,31 @@ const SavedPlaylists: React.FC<SavedPlaylistsProps> = ({ onLoadPlaylist }) => {
         <p className="text-gray-500">
           Your saved playlists will appear here
         </p>
+        {onCreateNew && (
+          <button
+            onClick={onCreateNew}
+            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+          >
+            Create New Playlist
+          </button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-4xl">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Your Saved Playlists</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-800">Your Saved Playlists</h2>
+        {onCreateNew && (
+          <button
+            onClick={onCreateNew}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition text-sm"
+          >
+            Create New Playlist
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {playlists.map(playlist => (
           <div 
@@ -91,6 +120,12 @@ const SavedPlaylists: React.FC<SavedPlaylistsProps> = ({ onLoadPlaylist }) => {
                 <span>Created {formatDate(playlist.createdAt)}</span>
                 <span className="mx-2">•</span>
                 <span>Model: {playlist.model}</span>
+                {playlist.modelProvider && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span>Provider: {playlist.modelProvider === 'openai' ? 'OpenAI' : 'Ollama'}</span>
+                  </>
+                )}
               </div>
               
               <div className="mb-4">

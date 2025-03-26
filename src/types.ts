@@ -25,6 +25,16 @@ export interface OpenAIModel {
   description: string;
 }
 
+export interface OllamaModel {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface AIModel extends OpenAIModel {
+  provider: 'openai' | 'ollama';
+}
+
 export interface PromptSettings {
   playlistGenerationPrompt: string;
   songDetailsPrompt: string;
@@ -37,6 +47,7 @@ export interface SavedPlaylist {
   genre: string;
   songs: Song[];
   model: string;
+  modelProvider: 'openai' | 'ollama';
   createdAt: number;
   promptSettings?: PromptSettings;
 }

@@ -62,7 +62,14 @@ export function exportPlaylistAsJson(playlist: SavedPlaylist): string {
 // Export playlist as text
 export function exportPlaylistAsText(playlist: SavedPlaylist): string {
   let text = `${playlist.name} (${playlist.genre})\n`;
-  text += `Generated with ${playlist.model}\n\n`;
+  text += `Generated with ${playlist.model}`;
+  
+  // Add provider information if available
+  if (playlist.modelProvider) {
+    text += ` on ${playlist.modelProvider === 'openai' ? 'OpenAI' : 'Ollama'}`;
+  }
+  
+  text += `\n\n`;
   
   playlist.songs.forEach((song, index) => {
     text += `${index + 1}. "${song.title}" by ${song.artist}\n`;
