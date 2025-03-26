@@ -1,4 +1,4 @@
-import { Song, OpenAIModel } from './types';
+import { Song, OpenAIModel, PromptSettings } from './types';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
@@ -28,9 +28,11 @@ export const OPENAI_MODELS: OpenAIModel[] = [
   }
 ];
 
-export async function generateSongPlaylist(genre: string, count: number = 20, model: string = DEFAULT_MODEL): Promise<Song[]> {
-  try {
-    const prompt = `Create a playlist of ${count} popular and influential ${genre} songs that actually exist. Focus on well-known, critically acclaimed, and commercially successful songs that are considered essential or top tracks in the ${genre} genre. Include a mix of classic and modern songs when appropriate.
+// Default prompt settings
+export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
+  systemPrompt: 'You are a music expert with extensive knowledge of music history and popular songs across all genres. Your task is to provide accurate information about real, existing songs that are considered top tracks in their respective genres. Only respond with valid JSON, no explanations or other text.',
+  
+  playlistGenerationPrompt: `Create a playlist of {count} popular and influential {genre} songs that actually exist. Focus on well-known, critically acclaimed, and commercially successful songs that are considered essential or top tracks in the {genre} genre. Include a mix of classic and modern songs when appropriate.
 
 For each song, provide:
 1. The exact title as it was officially released
@@ -42,7 +44,26 @@ Example format:
 [
   {"title": "Actual Song Title", "artist": "Real Artist Name"},
   ...
-]`;
+]`,
+
+  songDetailsPrompt: `Provide accurate details for the real {genre} song "{title}" by "{artist}". Include the actual album name it appeared on, the correct release year, an accurate song duration (in MM:SS format), and a short excerpt of the real lyrics (4-8 lines).
+
+If this is a well-known song, provide the factual information. If you're uncertain about any details, provide the most plausible information based on your knowledge of music history.
+
+Format the response as a JSON object with "album", "year", "duration", and "lyrics" properties. Only return the JSON object, no other text.`
+};
+
+export async function generateSongPlaylist(
+  genre: string, 
+  count: number = 20, 
+  model: string = DEFAULT_MODEL,
+  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS
+): Promise<Song[]> {
+  try {
+    // Replace placeholders in the prompt template
+    const prompt = promptSettings.playlistGenerationPrompt
+      .replace('{genre}', genre)
+      .replace('{count}', count.toString());
 
     const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
@@ -55,7 +76,7 @@ Example format:
         messages: [
           {
             role: 'system',
-            content: 'You are a music expert with extensive knowledge of music history and popular songs across all genres. Your task is to provide accurate information about real, existing songs that are considered top tracks in their respective genres. Only respond with valid JSON, no explanations or other text.'
+            content: promptSettings.systemPrompt
           },
           {
             role: 'user',
@@ -97,13 +118,18 @@ Example format:
   }
 }
 
-export async function generateSongDetails(song: Song, genre: string, model: string = DEFAULT_MODEL): Promise<Song> {
+export async function generateSongDetails(
+  song: Song, 
+  genre: string, 
+  model: string = DEFAULT_MODEL,
+  promptSettings: PromptSettings = DEFAULT_PROMPT_SETTINGS
+): Promise<Song> {
   try {
-    const prompt = `Provide accurate details for the real ${genre} song "${song.title}" by "${song.artist}". Include the actual album name it appeared on, the correct release year, an accurate song duration (in MM:SS format), and a short excerpt of the real lyrics (4-8 lines).
-
-If this is a well-known song, provide the factual information. If you're uncertain about any details, provide the most plausible information based on your knowledge of music history.
-
-Format the response as a JSON object with "album", "year", "duration", and "lyrics" properties. Only return the JSON object, no other text.`;
+    // Replace placeholders in the prompt template
+    const prompt = promptSettings.songDetailsPrompt
+      .replace('{genre}', genre)
+      .replace('{title}', song.title)
+      .replace('{artist}', song.artist);
 
     const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
@@ -116,7 +142,7 @@ Format the response as a JSON object with "album", "year", "duration", and "lyri
         messages: [
           {
             role: 'system',
-            content: 'You are a music expert with extensive knowledge of music history, albums, release dates, and lyrics. Provide accurate information about real songs. Only respond with valid JSON, no explanations or other text.'
+            content: promptSettings.systemPrompt
           },
           {
             role: 'user',

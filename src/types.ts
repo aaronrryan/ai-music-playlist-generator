@@ -25,6 +25,12 @@ export interface OpenAIModel {
   description: string;
 }
 
+export interface PromptSettings {
+  playlistGenerationPrompt: string;
+  songDetailsPrompt: string;
+  systemPrompt: string;
+}
+
 export interface SavedPlaylist {
   id: string;
   name: string;
@@ -32,4 +38,5 @@ export interface SavedPlaylist {
   songs: Song[];
   model: string;
   createdAt: number;
+  promptSettings?: PromptSettings;
 }

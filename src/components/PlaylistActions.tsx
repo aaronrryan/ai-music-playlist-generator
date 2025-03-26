@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Save, Share2, Download, Clipboard, Check, X } from 'lucide-react';
-import { Song, SavedPlaylist } from '../types';
+import { Song, SavedPlaylist, PromptSettings } from '../types';
 import { 
   savePlaylist, 
   generatePlaylistId, 
@@ -13,9 +13,15 @@ interface PlaylistActionsProps {
   songs: Song[];
   genre: string;
   selectedModel: string;
+  promptSettings: PromptSettings;
 }
 
-const PlaylistActions: React.FC<PlaylistActionsProps> = ({ songs, genre, selectedModel }) => {
+const PlaylistActions: React.FC<PlaylistActionsProps> = ({ 
+  songs, 
+  genre, 
+  selectedModel,
+  promptSettings 
+}) => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -33,7 +39,8 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({ songs, genre, selecte
       genre,
       songs,
       model: selectedModel,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      promptSettings
     };
     
     savePlaylist(playlist);
@@ -64,7 +71,8 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({ songs, genre, selecte
       genre,
       songs,
       model: selectedModel,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      promptSettings
     };
     
     // Generate export content based on selected format
@@ -107,7 +115,8 @@ const PlaylistActions: React.FC<PlaylistActionsProps> = ({ songs, genre, selecte
       genre,
       songs,
       model: selectedModel,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      promptSettings
     };
     
     // Generate export content based on selected format

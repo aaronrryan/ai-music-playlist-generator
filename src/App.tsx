@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Music, Library } from 'lucide-react';
+import { Music, Library, Settings } from 'lucide-react';
 import GenreForm from './components/GenreForm';
 import SongList from './components/SongList';
 import PlaylistActions from './components/PlaylistActions';
 import SavedPlaylists from './components/SavedPlaylists';
-import { generateSongPlaylist, generateSongDetails } from './api';
-import { PlaylistState, Song, SavedPlaylist } from './types';
+import PromptSettings from './components/PromptSettings';
+import { generateSongPlaylist, generateSongDetails, DEFAULT_PROMPT_SETTINGS } from './api';
+import { PlaylistState, Song, SavedPlaylist, PromptSettings as PromptSettingsType } from './types';
 import { getPlaylistIdFromUrl, getPlaylistById } from './utils/storage';
 
 function App() {
@@ -17,6 +18,9 @@ function App() {
   });
   const [selectedModel, setSelectedModel] = useState<string>('gpt-4o-mini');
   const [showSavedPlaylists, setShowSavedPlaylists] = useState(false);
+  const [showPromptSettings, setShowPromptSettings] = useState(false);
+  const [promptSettings, setPromptSettings] = useState<PromptSettingsType>(DEFAULT_PROMPT_SETTINGS);
+  const [currentPrompt, setCurrentPrompt] = useState<string>('');
 
   // Check URL for shared playlist on initial load
   useEffect(() => {
@@ -39,7 +43,14 @@ function App() {
     });
 
     try {
-      const songs = await generateSongPlaylist(genre, 20, model);
+      // Format the prompt with actual values to display it to the user
+      const formattedPrompt = promptSettings.playlistGenerationPrompt
+        .replace('{genre}', genre)
+        .replace('{count}', '20');
+      
+      setCurrentPrompt(formattedPrompt);
+      
+      const songs = await generateSongPlaylist(genre, 20, model, promptSettings);
       setPlaylistState(prev => ({
         ...prev,
         songs,
@@ -52,7 +63,7 @@ function App() {
         error: error instanceof Error ? error.message : 'An unknown error occurred'
       }));
     }
-  }, []);
+  }, [promptSettings]);
 
   const handleUpdateSong = useCallback((updatedSong: Song) => {
     setPlaylistState(prev => ({
@@ -65,14 +76,22 @@ function App() {
 
   const handleSongDetails = useCallback(async (song: Song) => {
     try {
-      const updatedSong = await generateSongDetails(song, playlistState.genre, selectedModel);
+      // Format the prompt with actual values to display it to the user
+      const formattedPrompt = promptSettings.songDetailsPrompt
+        .replace('{genre}', playlistState.genre)
+        .replace('{title}', song.title)
+        .replace('{artist}', song.artist);
+      
+      setCurrentPrompt(formattedPrompt);
+      
+      const updatedSong = await generateSongDetails(song, playlistState.genre, selectedModel, promptSettings);
       handleUpdateSong(updatedSong);
       return updatedSong;
     } catch (error) {
       console.error('Error fetching song details:', error);
       return song;
     }
-  }, [playlistState.genre, selectedModel, handleUpdateSong]);
+  }, [playlistState.genre, selectedModel, handleUpdateSong, promptSettings]);
 
   const loadSavedPlaylist = (playlist: SavedPlaylist) => {
     setSelectedModel(playlist.model);
@@ -82,7 +101,18 @@ function App() {
       loading: false,
       error: null
     });
+    
+    // Load prompt settings if they exist, otherwise use defaults
+    if (playlist.promptSettings) {
+      setPromptSettings(playlist.promptSettings);
+    }
+    
     setShowSavedPlaylists(false);
+  };
+
+  const handleSavePromptSettings = (newSettings: PromptSettingsType) => {
+    setPromptSettings(newSettings);
+    setShowPromptSettings(false);
   };
 
   return (
@@ -98,7 +128,13 @@ function App() {
       </header>
 
       <main className="w-full max-w-4xl flex flex-col items-center space-y-8">
-        {showSavedPlaylists ? (
+        {showPromptSettings ? (
+          <PromptSettings 
+            settings={promptSettings} 
+            onSave={handleSavePromptSettings} 
+            onCancel={() => setShowPromptSettings(false)} 
+          />
+        ) : showSavedPlaylists ? (
           <>
             <SavedPlaylists onLoadPlaylist={loadSavedPlaylist} />
             <button
@@ -114,13 +150,23 @@ function App() {
               <>
                 <GenreForm onSubmit={handleGenreSubmit} isLoading={playlistState.loading} />
                 
-                <button
-                  onClick={() => setShowSavedPlaylists(true)}
-                  className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition mt-4"
-                >
-                  <Library className="h-4 w-4 mr-2" />
-                  View Saved Playlists
-                </button>
+                <div className="flex space-x-4 mt-4">
+                  <button
+                    onClick={() => setShowSavedPlaylists(true)}
+                    className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    <Library className="h-4 w-4 mr-2" />
+                    View Saved Playlists
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowPromptSettings(true)}
+                    className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Customize Prompts
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -136,7 +182,17 @@ function App() {
                   songs={playlistState.songs}
                   genre={playlistState.genre}
                   selectedModel={selectedModel}
+                  promptSettings={promptSettings}
                 />
+                
+                {currentPrompt && (
+                  <div className="w-full mt-4 p-4 bg-gray-100 rounded-lg border border-gray-300">
+                    <h3 className="text-lg font-medium text-gray-800 mb-2">Current Prompt</h3>
+                    <div className="bg-white p-3 rounded border border-gray-200 font-mono text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      {currentPrompt}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="mt-2 flex space-x-4">
                   <button
@@ -153,6 +209,14 @@ function App() {
                     <Library className="h-4 w-4 mr-2" />
                     View Saved Playlists
                   </button>
+                  
+                  <button
+                    onClick={() => setShowPromptSettings(true)}
+                    className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Customize Prompts
+                  </button>
                 </div>
               </>
             )}
@@ -164,6 +228,15 @@ function App() {
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
             <p className="text-gray-700">Generating your {playlistState.genre} playlist...</p>
             <p className="text-sm text-gray-500 mt-2">This may take a moment</p>
+            
+            {currentPrompt && (
+              <div className="mt-4 p-3 bg-white border border-gray-200 rounded-lg max-w-lg">
+                <p className="text-sm text-gray-600 mb-1">Using this prompt:</p>
+                <div className="font-mono text-xs text-gray-700 whitespace-pre-wrap max-h-28 overflow-y-auto">
+                  {currentPrompt}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
