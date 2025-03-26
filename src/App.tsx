@@ -74,18 +74,16 @@ const App: React.FC = () => {
     const loadSavedPlaylists = async () => {
       try {
         const playlists = await getPlaylists();
-        // If there are saved playlists and URL has no playlist ID, show them
-        if (playlists.length > 0 && !getPlaylistIdFromUrl()) {
-          setPlaylistState({
-            status: 'saved_playlists',
-            songs: [],
-            savedPlaylists: playlists,
-            error: null,
-            genre: '',
-            loading: false,
-          });
-        } else if (getPlaylistIdFromUrl()) {
+        // Only load a playlist if URL has a playlist ID parameter
+        if (getPlaylistIdFromUrl()) {
           await loadSavedPlaylist(getPlaylistIdFromUrl() as string);
+        }
+        // Store the playlists in state for later use, but don't show them by default
+        if (playlists.length > 0) {
+          setPlaylistState(prev => ({
+            ...prev,
+            savedPlaylists: playlists
+          }));
         }
       } catch (error) {
         console.error('Failed to load saved playlists', error);
@@ -231,24 +229,29 @@ const App: React.FC = () => {
         <div className="flex flex-col items-center justify-center">
           
           {(playlistState.status === 'idle') && (
-            <GenreForm 
-              onSubmit={handleGenreSubmit}
-              isLoading={false}
-            />
+            <div className="flex flex-col items-center">
+              <GenreForm 
+                onSubmit={handleGenreSubmit}
+                isLoading={false}
+                savedPlaylistsCount={playlistState.savedPlaylists?.length}
+                onViewSavedPlaylists={() => setPlaylistState(prev => ({
+                  ...prev,
+                  status: 'saved_playlists'
+                }))}
+              />
+            </div>
           )}
           
-          {(playlistState.status === 'saved_playlists' && playlistState.savedPlaylists) && (
-            <SavedPlaylists 
-              playlists={playlistState.savedPlaylists}
-              onLoadPlaylist={handlePlaylistLoad}
-              onCreateNew={() => setPlaylistState({
-                status: 'idle',
-                songs: [],
-                error: null,
-                genre: '',
-                loading: false,
-              })}
-            />
+          {(playlistState.status === 'saved_playlists') && (
+            <div>
+              <SavedPlaylists 
+                onLoadPlaylist={handlePlaylistLoad} 
+                onCreateNew={() => setPlaylistState(prev => ({
+                  ...prev,
+                  status: 'idle'
+                }))}
+              />
+            </div>
           )}
           
           {(playlistState.status === 'loading' || playlistState.status === 'generating_details') && (

@@ -5,9 +5,16 @@ import { AIModel, ALL_AI_MODELS, OPENAI_MODELS, OLLAMA_MODELS, fetchOllamaModels
 interface GenreFormProps {
   onSubmit: (genre: string, model: string, provider: 'openai' | 'ollama') => void;
   isLoading: boolean;
+  savedPlaylistsCount?: number;
+  onViewSavedPlaylists?: () => void;
 }
 
-const GenreForm: React.FC<GenreFormProps> = ({ onSubmit, isLoading }) => {
+const GenreForm: React.FC<GenreFormProps> = ({ 
+  onSubmit, 
+  isLoading,
+  savedPlaylistsCount, 
+  onViewSavedPlaylists 
+}) => {
   const [genre, setGenre] = useState('');
   const [selectedModel, setSelectedModel] = useState<AIModel>(OPENAI_MODELS[0]);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -114,6 +121,43 @@ const GenreForm: React.FC<GenreFormProps> = ({ onSubmit, isLoading }) => {
         </div>
         
         <div>
+          <p className="text-sm text-gray-600 mb-2">Popular genres:</p>
+          <div className="flex flex-wrap gap-2">
+            {popularGenres.map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGenre(g)}
+                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full text-gray-800 transition"
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <button
+          type="submit"
+          disabled={isLoading || !genre.trim()}
+          className={`w-full py-2 px-4 rounded-md text-white font-medium transition ${
+            isLoading || !genre.trim() 
+              ? 'bg-indigo-400 cursor-not-allowed' 
+              : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
+        >
+          {isLoading ? 'Generating...' : 'Generate Playlist'}
+        </button>
+        
+        <div className="relative pt-3 pb-2">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-white px-2 text-sm text-gray-500">Advanced Options</span>
+          </div>
+        </div>
+        
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select Provider
           </label>
@@ -205,33 +249,22 @@ const GenreForm: React.FC<GenreFormProps> = ({ onSubmit, isLoading }) => {
           </div>
         </div>
         
-        <div>
-          <p className="text-sm text-gray-600 mb-2">Popular genres:</p>
-          <div className="flex flex-wrap gap-2">
-            {popularGenres.map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setGenre(g)}
-                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full text-gray-800 transition"
-              >
-                {g}
-              </button>
-            ))}
+        {onViewSavedPlaylists && (
+          <div className="mt-2 text-center">
+            <button
+              type="button"
+              onClick={onViewSavedPlaylists}
+              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center justify-center mx-auto"
+            >
+              View Saved Playlists
+              {savedPlaylistsCount && savedPlaylistsCount > 0 && (
+                <span className="ml-2 bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                  {savedPlaylistsCount}
+                </span>
+              )}
+            </button>
           </div>
-        </div>
-        
-        <button
-          type="submit"
-          disabled={isLoading || !genre.trim()}
-          className={`w-full py-2 px-4 rounded-md text-white font-medium transition ${
-            isLoading || !genre.trim() 
-              ? 'bg-indigo-400 cursor-not-allowed' 
-              : 'bg-indigo-600 hover:bg-indigo-700'
-          }`}
-        >
-          {isLoading ? 'Generating...' : 'Generate Playlist'}
-        </button>
+        )}
       </form>
     </div>
   );
