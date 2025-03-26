@@ -171,7 +171,7 @@ The application uses browser localStorage to:
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser and navigate to `http://localhost:8889`
 
 ### Using with Ollama
 
